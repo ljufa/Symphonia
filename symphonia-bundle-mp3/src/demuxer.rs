@@ -11,7 +11,7 @@ use symphonia_core::checksum::Crc16AnsiLe;
 use symphonia_core::codecs::CodecParameters;
 use symphonia_core::codecs::audio::AudioCodecParameters;
 use symphonia_core::codecs::audio::well_known::{CODEC_ID_MP1, CODEC_ID_MP2, CODEC_ID_MP3};
-use symphonia_core::errors::{Error, Result, SeekErrorKind, seek_error};
+use symphonia_core::errors::{Error, Result, SeekErrorKind, seek_error, unsupported_error};
 use symphonia_core::formats::prelude::*;
 use symphonia_core::formats::probe::{ProbeFormatData, ProbeableFormat, Score, Scoreable};
 use symphonia_core::formats::well_known::{FORMAT_ID_MP1, FORMAT_ID_MP2, FORMAT_ID_MP3};
@@ -588,6 +588,7 @@ fn read_mpeg_frame(reader: &mut MediaSourceStream<'_>) -> Result<(FrameHeader, V
 
 /// Reads a MPEG frame and checks if the next frame begins after the packet.
 fn read_mpeg_frame_strict(reader: &mut MediaSourceStream<'_>) -> Result<(FrameHeader, Vec<u8>)> {
+    let mut errors_no = 0;
     loop {
         // Read the next MPEG frame.
         let (header, packet) = read_mpeg_frame(reader)?;
@@ -604,11 +605,15 @@ fn read_mpeg_frame_strict(reader: &mut MediaSourceStream<'_>) -> Result<(FrameHe
             if !header::is_frame_header_word_synced(sync) || !is_frame_header_similar(&header, sync)
             {
                 warn!("skipping junk at {} bytes", pos - packet.len() as u64);
-
+                errors_no = errors_no + 1;
                 // Seek back to the second byte of the rejected packet to prevent syncing to the
                 // same spot again.
                 reader.seek_buffered_rev(packet.len() + MPEG_HEADER_LEN - 1);
-                continue;
+                if errors_no < 10 {
+                    continue;
+                } else {
+                    return unsupported_error("Stream is not readable");
+                }
             }
         }
 
