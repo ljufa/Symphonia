@@ -11,7 +11,7 @@ use std::num::Wrapping;
 
 use symphonia_common::xiph::audio::flac::StreamInfo;
 use symphonia_core::audio::{
-    AsGenericAudioBufferRef, AudioBuffer, AudioMut, AudioSpec, GenericAudioBufferRef,
+    AsGenericAudioBufferRef, Audio, AudioBuffer, AudioMut, AudioSpec, GenericAudioBufferRef,
 };
 use symphonia_core::codecs::CodecInfo;
 use symphonia_core::codecs::audio::well_known::CODEC_ID_FLAC;
@@ -179,7 +179,7 @@ impl FlacDecoder {
             | ChannelAssignment::RightSide => 2,
         };
 
-        if frame_channels != self.buf.spec().channels.count() {
+        if frame_channels != self.buf.spec().channels().count() {
             return decode_error("flac: frame channel count does not match stream info");
         }
 

@@ -350,7 +350,7 @@ fn read_id3v2_body<B: ReadBytes + FiniteStream>(
     Ok(())
 }
 
-pub(crate) fn read_id3v2<B: ReadBytes>(
+pub fn read_id3v2<B: ReadBytes>(
     reader: &mut B,
     metadata: &mut MetadataBuilder,
     side_data: &mut Vec<MetadataSideData>,
@@ -537,7 +537,7 @@ impl ChapterGroupBuilder {
     }
 }
 
-pub(crate) const ID3V2_METADATA_INFO: MetadataInfo =
+pub const ID3V2_METADATA_INFO: MetadataInfo =
     MetadataInfo { metadata: METADATA_ID_ID3V2, short_name: "id3v2", long_name: "ID3v2" };
 
 /// ID3v2 tag reader.
