@@ -17,7 +17,7 @@ use std::{f32, f64};
 
 use lazy_static::lazy_static;
 
-use log::debug;
+use log::info;
 
 /// The length of the `POW43` table.
 const POW43_LEN: usize = 8207;
@@ -221,13 +221,13 @@ pub(super) fn read_huffman_samples<B: ReadBitsLtr>(
     // samples, therefore, undo them! The caller will be reponsible for re-aligning the bitstream
     // reader. Candy Pop confirms this.
     else if bits_read > part3_bits && i > big_values_len {
-        debug!("count1 overrun, malformed bitstream");
+        info!("count1 overrun, malformed bitstream");
         i -= 4;
     }
     else if bits_read > part3_bits {
         // It seems that most other decoders don't undo overruns of the big values. We'll just print
         // a message for now.
-        debug!("big_values overrun, malformed bitstream");
+        info!("big_values overrun, malformed bitstream");
     }
 
     // The final partition after the count1 partition is the rzero partition. Samples in this

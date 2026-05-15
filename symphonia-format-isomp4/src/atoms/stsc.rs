@@ -8,7 +8,6 @@
 use crate::atoms::limits::*;
 use crate::atoms::{Atom, AtomHeader, AtomIterator, ReadAtom, Result, decode_error};
 
-#[allow(dead_code)]
 #[derive(Debug)]
 pub struct StscEntry {
     pub first_chunk: u32,
