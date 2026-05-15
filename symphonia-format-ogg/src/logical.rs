@@ -1,5 +1,5 @@
 // Symphonia
-// Copyright (c) 2019-2022 The Project Symphonia Developers.
+// Copyright (c) 2019-2026 The Project Symphonia Developers.
 //
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -393,11 +393,11 @@ impl LogicalStream {
     /// end delay parameters. To obtain the end delay, at a minimum, the last two pages are
     /// required. The state returned by each iteration of this function should be passed into the
     /// subsequent iteration.
-    pub fn inspect_end_page(&mut self, mut state: InspectState, page: &Page<'_>) -> InspectState {
+    pub fn inspect_end_page(&mut self, state: &mut InspectState, page: &Page<'_>) {
         // Do nothing if the end bound was found.
         if self.end_bound.is_some() {
             debug!("end page already found");
-            return state;
+            return;
         }
 
         // Get and/or create the packet parser.
@@ -406,13 +406,13 @@ impl LogicalStream {
             None => {
                 state.parser = self.mapper.make_parser();
 
-                if let Some(parser) = &mut state.parser {
-                    parser
-                }
+                let Some(parser) = &mut state.parser
                 else {
                     debug!("failed to make end bound packet parser");
-                    return state;
-                }
+                    return;
+                };
+
+                parser
             }
         };
 
@@ -427,7 +427,7 @@ impl LogicalStream {
             // On overflow it will be impossible to determine the end bound.
             total_pkt_dur = match total_pkt_dur.checked_add(pkt_dur) {
                 Some(total) => total,
-                _ => return state,
+                _ => return,
             };
         }
 
@@ -488,12 +488,15 @@ impl LogicalStream {
         // If this is the last page, update the codec parameters.
         if page.header.is_last_page {
             // TODO: What if this is negative?
+            // TODO: Bounds are in timestamp units, not number of frames. Fix this up because it
+            // only works for audio codecs.
             let num_frames = bound.ts.get() as u64;
             let num_padding_frames = bound.discard.get() as u32;
 
             let track = self.mapper.track_mut();
 
             track.with_num_frames(num_frames);
+            track.with_duration(Duration::from(num_frames));
 
             if num_padding_frames > 0 {
                 track.with_padding(num_padding_frames);
@@ -504,8 +507,6 @@ impl LogicalStream {
 
         // Update the state's bound.
         state.bound = Some(bound);
-
-        state
     }
 
     /// Examine a page in isolation and return the start and end timestamps as a tuple.

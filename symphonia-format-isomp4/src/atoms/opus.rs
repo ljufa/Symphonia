@@ -1,16 +1,17 @@
 // Symphonia
-// Copyright (c) 2019-2022 The Project Symphonia Developers.
+// Copyright (c) 2019-2026 The Project Symphonia Developers.
 //
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 use symphonia_core::codecs::audio::well_known::CODEC_ID_OPUS;
-use symphonia_core::errors::{Error, Result, decode_error, unsupported_error};
-use symphonia_core::io::ReadBytes;
+use symphonia_core::errors::Error;
 
 use crate::atoms::stsd::AudioSampleEntry;
-use crate::atoms::{Atom, AtomHeader};
+use crate::atoms::{
+    Atom, AtomHeader, AtomIterator, ReadAtom, Result, decode_error, unsupported_error,
+};
 
 /// Opus atom.
 #[allow(dead_code)]
@@ -21,7 +22,7 @@ pub struct OpusAtom {
 }
 
 impl Atom for OpusAtom {
-    fn read<B: ReadBytes>(reader: &mut B, header: AtomHeader) -> Result<Self> {
+    fn read<R: ReadAtom>(reader: &mut AtomIterator<R>, header: &AtomHeader) -> Result<Self> {
         const OPUS_MAGIC: &[u8] = b"OpusHead";
         const OPUS_MAGIC_LEN: usize = OPUS_MAGIC.len();
 
@@ -35,7 +36,7 @@ impl Atom for OpusAtom {
         // signature. Therefore, the atom data length should be atleast as long as the shortest
         // Opus identification header.
         let data_len = header
-            .data_len()
+            .data_size()
             .ok_or(Error::DecodeError("isomp4 (opus): expected atom size to be known"))?
             as usize;
 
@@ -65,8 +66,8 @@ impl Atom for OpusAtom {
 }
 
 impl OpusAtom {
-    pub fn fill_audio_sample_entry(&self, entry: &mut AudioSampleEntry) {
+    pub fn fill_audio_sample_entry(self, entry: &mut AudioSampleEntry) {
         entry.codec_id = CODEC_ID_OPUS;
-        entry.extra_data = Some(self.extra_data.clone());
+        entry.extra_data = Some(self.extra_data);
     }
 }

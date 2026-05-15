@@ -1,5 +1,5 @@
 // Symphonia
-// Copyright (c) 2019-2022 The Project Symphonia Developers.
+// Copyright (c) 2019-2026 The Project Symphonia Developers.
 //
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -19,7 +19,7 @@ use symphonia_core::meta::{
 };
 use symphonia_core::support_metadata;
 
-use log::{debug, trace};
+use log::{debug, trace, warn};
 
 mod frames;
 mod unsync;
@@ -238,7 +238,7 @@ fn read_id3v2p4_extended_header<B: ReadBytes>(reader: &mut B) -> Result<Extended
             _ => unreachable!(),
         };
 
-        let text_encoding = match (restrictions & 0x40) >> 5 {
+        let text_encoding = match (restrictions & 0x20) >> 5 {
             0 => TextEncodingRestriction::None,
             1 => TextEncodingRestriction::Utf8OrIso88591,
             _ => unreachable!(),
@@ -305,36 +305,44 @@ fn read_id3v2_body<B: ReadBytes + FiniteStream>(
             3 => read_id3v2p3_frame(reader),
             4 => read_id3v2p4_frame(reader),
             _ => break,
-        }?;
+        };
 
         match frame {
             // The frame was skipped for some reason.
-            FrameResult::Skipped => (),
+            Ok(FrameResult::Skipped) => (),
             // The padding has been reached, don't parse any further.
-            FrameResult::Padding => break,
+            Ok(FrameResult::Padding) => break,
             // A frame was parsed into a tag, add it to the tag collection.
-            FrameResult::Tag(tag) => {
+            Ok(FrameResult::Tag(tag)) => {
                 metadata.add_tag(tag);
             }
             // A frame was parsed into multiple tags, add them all to the tag collection.
-            FrameResult::MultipleTags(tags) => {
+            Ok(FrameResult::MultipleTags(tags)) => {
                 for tag in tags {
                     metadata.add_tag(tag);
                 }
             }
             // A frame was parsed into a visual, add it to the visual collection.
-            FrameResult::Visual(visual) => {
+            Ok(FrameResult::Visual(visual)) => {
                 metadata.add_visual(visual);
             }
             // A chapter was encountered, save it for post-processing.
-            FrameResult::Chapter(chap) => {
+            Ok(FrameResult::Chapter(chap)) => {
                 chap_builder.add_chapter(chap);
             }
             // A table of contents was encountered, save it for post-processing.
-            FrameResult::TableOfContents(toc) => {
+            Ok(FrameResult::TableOfContents(toc)) => {
                 chap_builder.add_toc(toc);
             }
-        }
+            Err(_) => {
+                // The read frame functions suppress any errors that occur while reading the content
+                // of a frame. Any errors that are returned are related to the frame's structure and
+                // result in a fatal error since the structure of the overall tag becomes
+                // compromised.
+                warn!("fatal error reading id3v2 frame, skipping remainder of tag");
+                break;
+            }
+        };
 
         // Read frames until there is not enough bytes available in the ID3v2 tag for another frame.
         if reader.bytes_available() < min_frame_size {

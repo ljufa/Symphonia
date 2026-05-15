@@ -1,5 +1,5 @@
 // Symphonia
-// Copyright (c) 2019-2022 The Project Symphonia Developers.
+// Copyright (c) 2019-2026 The Project Symphonia Developers.
 //
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -322,12 +322,9 @@ pub fn synthesis(state: &mut SynthesisState, n_frames: usize, in_samples: &[f32]
             }
         }
 
-        // Clamp and copy the PCM samples from o_vec to the output buffer.
+        // Copy the PCM samples from o_vec to the output buffer.
         let offset = b << 5;
-
-        for (o, s) in out[offset..offset + 32].iter_mut().zip(&o_vec) {
-            *o = s.clamp(-1.0, 1.0);
-        }
+        out[offset..offset + 32].copy_from_slice(&o_vec);
 
         // Shift the v_vec FIFO. The value v_front is the index of the 64 sample slot in v_vec
         // that will be overwritten next iteration. Conversely, that makes it the front of the
